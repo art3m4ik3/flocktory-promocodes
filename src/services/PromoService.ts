@@ -1,18 +1,15 @@
 import type {
-  AcceptCampaignPayload,
-  AcceptCampaignResponse,
+  AcceptOfferPayload,
+  AcceptOfferResponse,
   PromoCode,
   Offer,
   CouponData,
-  FlockInitialState,
-  SiteInfoData,
 } from "../types";
 import {
-  FLOCKTORY_URLS,
-  DEFAULT_EMAIL,
-  CONSENT_TYPES,
-  ACTION_TYPES,
-  REGEX,
+  buildAcceptOfferUrl,
+  DEFAULT_CONSENTS,
+  DEFAULT_CUSTOMER_ACTIONS,
+  DEFAULT_PROMO_REQUEST_DELAY,
 } from "../config/constants";
 import { HttpClient } from "../core/HttpClient";
 import { SessionManager } from "./SessionManager";
@@ -27,86 +24,62 @@ export class PromoService {
   }
 
   public async getPromoCode(offer: Offer): Promise<PromoCode> {
-    const popupState = await this.sessionManager.loadCampaignPopup(offer.id);
-
-    if (popupState.jwtToken) {
-      this.sessionManager.setJwtToken(popupState.jwtToken);
-    }
-
-    const { siteId, campaignSiteId } = this.extractSiteIds(popupState, offer);
-    const couponData = await this.acceptCampaign(
-      offer.id,
-      siteId,
-      campaignSiteId,
-    );
+    const couponData = await this.acceptOffer(offer);
 
     return {
-      code: couponData.promocode || couponData.coupon || "N/A",
+      code: couponData.coupon || couponData.promocode || "N/A",
       service: offer.service,
-      serviceUrl: couponData.url || "",
+      serviceUrl: offer.serviceUrl || "",
       description: offer.description,
+      rewardValue: couponData["reward-value"],
+      expiresAt: couponData["expires-at"],
     };
   }
 
-  private async acceptCampaign(
-    campaignId: number,
-    siteId: string,
-    campaignSiteId: string,
-  ): Promise<CouponData> {
+  private async acceptOffer(offer: Offer): Promise<CouponData> {
     const jwtToken = this.sessionManager.getJwtToken();
     const uuid = this.sessionManager.getUuid();
+    const siteId = this.sessionManager.getSiteId();
+    const email = this.sessionManager.getEmail();
 
-    if (!jwtToken || !uuid) {
+    if (!jwtToken || !uuid || !siteId) {
       throw new Error("Session not initialized properly");
     }
 
-    const payload: AcceptCampaignPayload = {
-      "login-data": jwtToken,
-      email: DEFAULT_EMAIL,
-      "campaign-id": String(campaignId),
-      "campaign-site-id": campaignSiteId,
-      "site-id": siteId,
-      consents: [
-        {
-          type: CONSENT_TYPES.HOST_AD,
-          value: "consent_host_ad_ru_RU_20250828.pdf",
-        },
-        {
-          type: CONSENT_TYPES.HOST_PD,
-          value: "consent_host_pd_ru_RU_20250828.pdf",
-        },
-        { type: CONSENT_TYPES.PREFILL_ACCEPTED, value: "true" },
-      ],
-      actions: [
-        { key: ACTION_TYPES.UTM_CAMPAIGN, value: "exchange" },
-        { key: ACTION_TYPES.UTM_SOURCE, value: "podarok.com" },
-        { key: ACTION_TYPES.UTM_TERM, value: "" },
-        { key: ACTION_TYPES.UTM_CONTENT, value: "" },
-        { key: ACTION_TYPES.UTM_MEDIUM, value: "referral" },
-        { key: ACTION_TYPES.LIGHT, value: "true" },
-      ],
+    if (!offer.offerSiteId) {
+      throw new Error(`Cannot determine offerSiteId for offer ${offer.id}`);
+    }
+
+    const payload: AcceptOfferPayload = {
+      jwtToken,
+      email,
+      offerId: String(offer.id),
+      offerSiteId: offer.offerSiteId,
+      siteId,
+      consents: DEFAULT_CONSENTS,
+      customerActions: DEFAULT_CUSTOMER_ACTIONS,
     };
 
-    const url = `${FLOCKTORY_URLS.ACCEPT_CAMPAIGN}/${uuid}/red/accept-exchange-campaign`;
-
-    const response = await this.httpClient.post<AcceptCampaignResponse>(
-      url,
+    const response = await this.httpClient.post<AcceptOfferResponse>(
+      buildAcceptOfferUrl(uuid),
       payload,
       {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json, text/javascript, */*; q=0.01",
           "X-Requested-With": "XMLHttpRequest",
+          Origin: "https://flocktory.com",
+          Referer: this.sessionManager.getReferer(),
         },
       },
     );
 
     if (response.status !== 200) {
-      throw new Error(`Failed to accept campaign: HTTP ${response.status}`);
+      throw new Error(`Failed to accept offer: HTTP ${response.status}`);
     }
 
     if (!response.data.url) {
-      throw new Error("No URL in campaign response");
+      throw new Error("No URL in accept offer response");
     }
 
     return this.parsePromoCodeUrl(response.data.url);
@@ -115,13 +88,13 @@ export class PromoService {
   private parsePromoCodeUrl(responseUrl: string): CouponData {
     try {
       const url = new URL(responseUrl);
-      const jwtToken = url.searchParams.get("data");
+      const token = url.searchParams.get("data");
 
-      if (!jwtToken) {
+      if (!token) {
         throw new Error("No data parameter in URL");
       }
 
-      const parts = jwtToken.split(".");
+      const parts = token.split(".");
 
       if (parts.length !== 3) {
         throw new Error("Invalid JWT format");
@@ -149,31 +122,12 @@ export class PromoService {
     }
   }
 
-  private extractSiteIds(
-    state: FlockInitialState,
-    offer: Offer,
-  ): { siteId: string; campaignSiteId: string } {
-    const mainSiteId = (state.siteInfo?.data as SiteInfoData)?.id;
-
-    if (!mainSiteId) {
-      throw new Error(`Cannot determine site ID for offer ${offer.id}`);
-    }
-
-    const campaignSiteId = state.siteInfo?.id
-      ? String(state.siteInfo.id)
-      : mainSiteId;
-
-    return {
-      siteId: mainSiteId,
-      campaignSiteId: campaignSiteId,
-    };
-  }
-
   public async getMultiplePromoCodes(
     offers: Offer[],
     options: { throwOnError?: boolean; delayMs?: number } = {},
   ): Promise<PromoCode[]> {
-    const { throwOnError = false, delayMs = 1000 } = options;
+    const { throwOnError = false, delayMs = DEFAULT_PROMO_REQUEST_DELAY } =
+      options;
     const promoCodes: PromoCode[] = [];
     const errors: Array<{ offerId: number; error: Error }> = [];
 

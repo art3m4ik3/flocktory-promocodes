@@ -1,22 +1,33 @@
-import type { FlockInitialState, FlockData } from "../types";
-import { REGEX, FLOCKTORY_URLS } from "../config/constants";
+import type {
+  FlockInitialState,
+  CampaignData,
+  OffersListResponse,
+} from "../types";
+import {
+  REGEX,
+  FLOCKTORY_URLS,
+  buildOffersListUrl,
+  generateRandomEmail,
+} from "../config/constants";
 import { HttpClient } from "../core/HttpClient";
 
 export class SessionManager {
   private readonly httpClient: HttpClient;
+  private readonly email: string;
   private uuid: string | null;
   private jwtToken: string | null;
-  private landingId: string | null;
-  private exchangeSessionId: string | null;
-  private cachedInitialState: FlockInitialState | null;
+  private siteId: string | null;
+  private referer: string;
+  private cachedCampaigns: CampaignData[] | null;
 
   constructor(httpClient: HttpClient) {
     this.httpClient = httpClient;
+    this.email = generateRandomEmail();
     this.uuid = null;
     this.jwtToken = null;
-    this.landingId = null;
-    this.exchangeSessionId = null;
-    this.cachedInitialState = null;
+    this.siteId = null;
+    this.referer = FLOCKTORY_URLS.LOGIN;
+    this.cachedCampaigns = null;
   }
 
   public async initialize(): Promise<void> {
@@ -26,77 +37,72 @@ export class SessionManager {
       throw new Error(`Failed to initialize session: HTTP ${response.status}`);
     }
 
-    this.uuid = this.extractUuidFromUrl(response.finalUrl);
-    this.cachedInitialState = this.parseInitialState(response.data);
+    this.referer = response.finalUrl || FLOCKTORY_URLS.LOGIN;
 
-    if (!this.uuid) {
-      this.uuid = this.cachedInitialState.app?.urlToken || null;
-    }
+    const state = this.parseInitialState(response.data);
+
+    this.uuid =
+      this.extractUuidFromUrl(response.finalUrl) || state.app?.urlToken || null;
+    this.jwtToken = state.app?.jwtToken || null;
+
+    const rawSiteId = state.siteInfo?.data?.id;
+    this.siteId = rawSiteId != null ? String(rawSiteId) : null;
 
     if (!this.uuid) {
       throw new Error("Failed to get UUID from redirect URL or initial state");
     }
 
-    this.extractSessionData(this.cachedInitialState);
+    if (!this.jwtToken) {
+      throw new Error("Failed to get jwtToken from initial state");
+    }
 
-    const cookies = this.httpClient.getCookies();
-    if (cookies["landing-id"] && !this.landingId) {
-      this.landingId = cookies["landing-id"];
+    if (!this.siteId) {
+      throw new Error("Failed to get siteId from initial state");
     }
   }
 
-  private extractUuidFromUrl(url?: string): string | null {
-    if (!url) return null;
-
-    const uuidMatch = url.match(/\/interchange\/([a-f0-9-]+)/i);
-    return uuidMatch?.[1] || null;
-  }
-
-  private extractSessionData(state: FlockInitialState): void {
-    this.jwtToken =
-      state.jwtToken ||
-      state.app?.jwtToken ||
-      state.userInfo?.jwtToken ||
-      this.jwtToken;
-
-    this.exchangeSessionId =
-      state.exchangeSessionId ||
-      state.userInfo?.exchangeSessionId ||
-      this.exchangeSessionId;
-
-    this.landingId =
-      state.landingId || state.userInfo?.landingId || this.landingId;
-  }
-
-  public async loadInterchangePage(): Promise<FlockInitialState> {
-    if (this.cachedInitialState) {
-      return this.cachedInitialState;
+  public async loadOffers(): Promise<CampaignData[]> {
+    if (this.cachedCampaigns) {
+      return this.cachedCampaigns;
     }
 
-    throw new Error("Session not initialized. Call initialize() first");
-  }
-
-  public async loadCampaignPopup(
-    campaignId: number,
-  ): Promise<FlockInitialState> {
-    if (!this.uuid || !this.landingId) {
-      throw new Error("Session not initialized properly");
+    if (!this.uuid || !this.jwtToken || !this.siteId) {
+      throw new Error("Session not initialized. Call initialize() first");
     }
 
-    const url = `${FLOCKTORY_URLS.INTERCHANGE_POPUP}/${this.uuid}/${campaignId}?lid=${this.landingId}`;
-    const response = await this.httpClient.get<string>(url, {
+    const url = buildOffersListUrl(
+      this.uuid,
+      this.jwtToken,
+      this.siteId,
+      this.email,
+    );
+
+    const response = await this.httpClient.get<OffersListResponse>(url, {
       headers: {
-        Referer: FLOCKTORY_URLS.LOGIN,
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        Accept: "application/json, text/javascript, */*; q=0.01",
+        "X-Requested-With": "XMLHttpRequest",
+        Referer: this.referer,
       },
     });
 
     if (response.status !== 200) {
-      throw new Error(`Failed to load campaign popup: HTTP ${response.status}`);
+      throw new Error(`Failed to load offers: HTTP ${response.status}`);
     }
 
-    return this.parseInitialState(response.data);
+    const campaigns = response.data?.campaigns;
+
+    if (!Array.isArray(campaigns)) {
+      throw new Error("No campaigns in offers list response");
+    }
+
+    this.cachedCampaigns = campaigns;
+    return campaigns;
+  }
+
+  private extractUuidFromUrl(url?: string): string | null {
+    if (!url) return null;
+    const match = url.match(REGEX.INTERCHANGE_UUID);
+    return match?.[1] || null;
   }
 
   private parseInitialState(html: string): FlockInitialState {
@@ -126,15 +132,15 @@ export class SessionManager {
     return this.jwtToken;
   }
 
-  public getLandingId(): string | null {
-    return this.landingId;
+  public getSiteId(): string | null {
+    return this.siteId;
   }
 
-  public getExchangeSessionId(): string | null {
-    return this.exchangeSessionId;
+  public getEmail(): string {
+    return this.email;
   }
 
-  public setJwtToken(token: string): void {
-    this.jwtToken = token;
+  public getReferer(): string {
+    return this.referer;
   }
 }

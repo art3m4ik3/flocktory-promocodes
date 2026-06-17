@@ -5,74 +5,65 @@ export interface CookieJar {
   [key: string]: string | undefined;
 }
 
-export interface FlockData {
-  landingId: string;
-  exchangeSessionId: string;
-}
-
-export interface SiteInfo {
-  id?: number;
-  title?: string;
-  url?: string;
-  imageUrl?: string;
-  campaigns?: Campaign[];
-  data?: SiteInfoData | unknown[];
-}
-
 export interface SiteInfoData {
-  id?: string;
+  id?: string | number;
   title?: string;
   domain?: string;
   images?: Record<string, string>;
   [key: string]: unknown;
 }
 
-export interface Campaign {
-  id: number;
-  popupUrl: string;
-  title: string;
-  description: string;
-  value?: string;
-  imageUrl?: string;
-  landingId?: string;
-}
-
-export interface UserInfo {
-  data?: Record<string, unknown>;
-  maskedData?: Record<string, unknown>;
-  exchangeSessionId?: string;
-  jwtToken?: string;
-  landingId?: string;
+export interface SiteInfo {
+  id?: number;
+  title?: string;
+  data?: SiteInfoData;
 }
 
 export interface FlockInitialState {
-  jwtToken?: string;
-  exchangeSessionId?: string;
-  landingId?: string;
-  urlQueryParams?: {
-    lid?: string;
-  };
   siteInfo?: SiteInfo;
-  userInfo?: UserInfo;
   app?: {
-    sites?: SiteInfo[];
     urlToken?: string;
     jwtToken?: string;
-    welcomePopupCountdownTime?: number;
+    urlQueryParams?: {
+      lid?: string;
+    };
   };
-  offers?: Offer[] | { list?: unknown[] };
-  welcomePopupList?: unknown[];
 }
 
-export interface AcceptCampaignPayload {
-  "login-data": string;
-  email: string;
-  "campaign-id": string;
-  "campaign-site-id": string;
-  "site-id": string;
-  consents: Consent[];
-  actions: Action[];
-  [key: string]: unknown;
+export interface CampaignSite {
+  id?: string | number;
+  title?: string;
+  domain?: string;
+  category?: string;
+}
+
+export interface CampaignTexts {
+  sale?: string;
+  short?: string;
+  conditions?: string;
+  motivationAmount?: string;
+  motivationType?: string;
+}
+
+export interface CampaignImages {
+  logotypeExchange?: string;
+  logoCircle?: string;
+  backgroundImage?: string;
+  [key: string]: string | undefined;
+}
+
+export interface CampaignData {
+  id: number | string;
+  site?: CampaignSite;
+  texts?: CampaignTexts;
+  images?: CampaignImages;
+  agreement?: string;
+  advertiserSiteUrl?: string;
+}
+
+export interface OffersListResponse {
+  testVariation?: string;
+  campaigns?: CampaignData[];
 }
 
 export interface Consent {
@@ -80,31 +71,34 @@ export interface Consent {
   value: string;
 }
 
-export interface Action {
+export interface CustomerAction {
   key: string;
   value: string;
 }
 
-export interface AcceptCampaignResponse {
-  url: string;
+export interface AcceptOfferPayload {
+  jwtToken: string;
+  email: string;
+  offerId: string;
+  offerSiteId: string;
+  siteId: string;
+  consents: Consent[];
+  customerActions: CustomerAction[];
+  [key: string]: unknown;
+}
+
+export interface AcceptOfferResponse {
+  url?: string;
 }
 
 export interface CouponData {
-  promocode?: string;
   coupon?: string;
+  promocode?: string;
   "expires-at"?: string;
   description?: string | null;
   "reward-value"?: string;
   "motivation-id"?: string;
-  url?: string;
   [key: string]: unknown;
-}
-
-export interface PromoCode {
-  code: string;
-  service: string;
-  serviceUrl: string;
-  description?: string;
 }
 
 export interface Offer {
@@ -114,6 +108,17 @@ export interface Offer {
   description: string;
   value?: string;
   imageUrl?: string;
+  offerSiteId: string;
+  serviceUrl?: string;
+}
+
+export interface PromoCode {
+  code: string;
+  service: string;
+  serviceUrl: string;
+  description?: string;
+  rewardValue?: string;
+  expiresAt?: string;
 }
 
 export interface RequestOptions {

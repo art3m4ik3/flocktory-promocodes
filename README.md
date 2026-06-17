@@ -65,11 +65,13 @@ const promos = await client.getPromoCodesByService("vtb.ru", 3);
 
 ## Как работает
 
-1. **Инициализация**: `/exchange/login` -> редирект на `/interchange/{uuid}` -> получение UUID
-2. **Получение офферов**: Парсинг `window.flockInitialState` из HTML
-3. **Загрузка popup**: `/interchange/{uuid}/{campaignId}?lid={landingId}` -> JWT токен
-4. **Активация**: `POST /{uuid}/red/accept-exchange-campaign` -> URL с промокодом
-5. **Декодирование**: Извлечение JWT из параметра `data` -> `coupon.coupon`
+1. **Инициализация**: `/exchange/login` -> редирект на `/interchange/{uuid}`. Из `window.flockInitialState` берутся `uuid`, `app.jwtToken` и `siteInfo.data.id` (siteId)
+2. **Получение офферов**: `GET /interchange/{uuid}/api/offers/list?jwtToken={jwt}&siteId={siteId}&email={email}` -> массив `campaigns`
+3. **Активация**: `POST /interchange/{uuid}/api/offers/accept` с `jwtToken`, `email`, `offerId`, `offerSiteId` (из `campaign.site.id`), `siteId`, согласиями и UTM-метками -> URL с промокодом
+4. **Декодирование**: Извлечение JWT из параметра `data` -> `coupon.coupon`
+
+> [!NOTE]
+> Email генерируется случайным образом при создании клиента, чтобы избежать спама. Часть офферов — лид-форма без промокода: для них сервер возвращает текст вроде «Не требуется», а не код.
 
 ## Важное замечание
 
