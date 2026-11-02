@@ -2,6 +2,15 @@ export const FLOCKTORY_URLS = {
   LOGIN: "https://share.flocktory.com/exchange/login",
 } as const;
 
+export const LOVIPODARKI_URLS = {
+  ORIGIN: "https://lovipodarki.ru",
+  API: "https://lovipodarki.ru/api",
+} as const;
+
+export const LOVIPODARKI_DEFAULT_PARTNER_ID = "2886886";
+
+export const LOVIPODARKI_PAGE_SIZE = 100;
+
 export const DEFAULT_HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",

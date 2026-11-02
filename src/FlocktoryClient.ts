@@ -1,10 +1,11 @@
-import type { Offer, PromoCode } from "./types";
+import type { Offer, PromoCode, PromoProvider } from "./types";
 import { HttpClient } from "./core/HttpClient";
 import { SessionManager } from "./services/SessionManager";
 import { OffersService } from "./services/OffersService";
 import { PromoService } from "./services/PromoService";
 
-export class FlocktoryClient {
+export class FlocktoryClient implements PromoProvider {
+  public readonly name = "flocktory";
   private readonly sessionManager: SessionManager;
   private readonly offersService: OffersService;
   private readonly promoService: PromoService;
