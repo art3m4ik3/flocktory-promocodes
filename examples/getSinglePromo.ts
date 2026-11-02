@@ -9,8 +9,8 @@ async function getSinglePromoCode(): Promise<void> {
     console.log("Сессия инициализирована\n");
 
     console.log("Получение доступных предложений");
-    const offers = await client.getAvailableOffers();
-    console.log(`Найдено ${offers.length} предложений\n`);
+    const offers = await client.getOffersWithPromoCodes();
+    console.log(`Найдено ${offers.length} предложений с промокодами\n`);
 
     if (offers.length === 0) {
       console.log("Нет доступных предложений");

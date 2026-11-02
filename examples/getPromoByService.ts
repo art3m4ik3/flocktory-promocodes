@@ -3,41 +3,27 @@ import { FlocktoryClient } from "../src/FlocktoryClient";
 async function main() {
   const serviceName = process.argv[2];
   const count = parseInt(process.argv[3] || "1", 10);
-
-  if (!serviceName) {
-    console.log(
-      "Использование: bun examples/getPromoByService.ts <название> [количество]\n",
-    );
-
-    console.log("Получение списка доступных сервисов\n");
-    const client = new FlocktoryClient();
-
-    try {
-      await client.initialize();
-      const offers = await client.getAvailableOffers();
-
-      const services = new Set<string>();
-      offers.forEach((offer) => services.add(offer.service));
-
-      console.log(`Доступные сервисы (${services.size}):`);
-      Array.from(services)
-        .sort()
-        .forEach((service, index) => {
-          console.log(`  ${index + 1}. ${service}`);
-        });
-    } catch (error: any) {
-      console.error(`Ошибка: ${error.message}`);
-    }
-
-    return;
-  }
-
   const client = new FlocktoryClient();
 
   try {
     console.log("Инициализация сессии");
     await client.initialize();
     console.log("Сессия инициализирована\n");
+
+    if (!serviceName) {
+      console.log(
+        "Использование: bun examples/getPromoByService.ts <название> [количество]\n",
+      );
+
+      const offers = await client.getOffersWithPromoCodes();
+      const services = [...new Set(offers.map((offer) => offer.service))].sort();
+
+      console.log(`Сервисы с промокодами (${services.length}):`);
+      services.forEach((service, index) => {
+        console.log(`  ${index + 1}. ${service}`);
+      });
+      return;
+    }
 
     console.log(`Поиск предложений для сервиса: ${serviceName}`);
     const offers = await client.getOffersByService(serviceName);
@@ -52,40 +38,13 @@ async function main() {
 
     console.log(`Найдено предложений: ${offers.length}\n`);
 
-    console.log(`Получение ${count} промокод(ов)\n`);
+    const promos = await client.getPromoCodesByService(serviceName, count);
 
-    const promos = [];
-    const firstOffer = offers[0];
-
-    if (!firstOffer) {
-      console.log(
-        `\nНе удалось получить предложение для сервиса "${serviceName}".`,
-      );
-      return;
-    }
-
-    for (let i = 0; i < count; i++) {
-      try {
-        console.log(`[${i + 1}/${count}] Создание новой сессии`);
-
-        const newClient = new FlocktoryClient();
-        await newClient.initialize();
-
-        console.log(`[${i + 1}/${count}] Получение промокода`);
-        const promo = await newClient.getPromoCode(firstOffer);
-        promos.push(promo);
-        console.log(`Получен: ${promo.code}`);
-      } catch (error: any) {
-        console.error(
-          `Ошибка при получении промокода ${i + 1}: ${error.message}`,
-        );
-      }
-    }
-
-    console.log("\nРезультат\n");
+    console.log("Результат\n");
     promos.forEach((promo, index) => {
       console.log(`[${index + 1}] Сервис: ${promo.service}`);
       console.log(`    Промокод: ${promo.code}`);
+      console.log(`    URL: ${promo.serviceUrl}`);
       if (promo.description) {
         const desc =
           promo.description.length > 100
@@ -96,7 +55,7 @@ async function main() {
       console.log();
     });
 
-    console.log(`Получено ${promos.length} промокод(ов)`);
+    console.log(`Получено ${promos.length} из ${count} промокод(ов)`);
   } catch (error: any) {
     console.error(`\nОшибка: ${error.message}`);
   }

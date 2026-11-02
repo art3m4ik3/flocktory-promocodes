@@ -1,4 +1,5 @@
 import type { CampaignData, Offer } from "../types";
+import { PROMO_CODE_QUERY_KEYS } from "../config/constants";
 import { SessionManager } from "./SessionManager";
 
 export class OffersService {
@@ -8,25 +9,48 @@ export class OffersService {
     this.sessionManager = sessionManager;
   }
 
-  public async getAvailableOffers(): Promise<Offer[]> {
-    const campaigns = await this.sessionManager.loadOffers();
+  public getAvailableOffers(): Offer[] {
+    const campaigns = this.sessionManager.loadOffers();
     return this.deduplicateOffers(campaigns.map((c) => this.mapToOffer(c)));
   }
 
   private mapToOffer(data: CampaignData): Offer {
-    const id = typeof data.id === "string" ? parseInt(data.id, 10) : data.id;
-    const offerSiteId = data.site?.id != null ? String(data.site.id) : "";
+    const redirectUrl = this.parseUrl(data.redirectUrl);
 
     return {
-      id,
-      service: data.site?.title || data.site?.domain || "Unknown Service",
-      title: data.texts?.sale || data.texts?.short || "No Title",
-      description: data.texts?.conditions || data.agreement || "",
-      value: data.texts?.motivationAmount,
-      imageUrl: data.images?.logotypeExchange || data.images?.logoCircle,
-      offerSiteId,
-      serviceUrl: data.advertiserSiteUrl,
+      id: data.id,
+      service: redirectUrl
+        ? redirectUrl.hostname.replace(/^www\./, "")
+        : "Unknown Service",
+      title: data.title || "No Title",
+      description: data.conditions || "",
+      imageUrl: data.logo,
+      serviceUrl: data.redirectUrl,
+      promoCode: redirectUrl ? this.extractPromoCode(redirectUrl) : undefined,
+      fields: data.fields ?? [],
     };
+  }
+
+  private parseUrl(value?: string): URL | null {
+    if (!value) return null;
+    try {
+      return new URL(value);
+    } catch {
+      return null;
+    }
+  }
+
+  private extractPromoCode(url: URL): string | undefined {
+    const params = new Map(
+      [...url.searchParams].map(([key, value]) => [key.toLowerCase(), value]),
+    );
+
+    for (const key of PROMO_CODE_QUERY_KEYS) {
+      const value = params.get(key);
+      if (value) return value;
+    }
+
+    return undefined;
   }
 
   private deduplicateOffers(offers: Offer[]): Offer[] {
@@ -40,17 +64,19 @@ export class OffersService {
     });
   }
 
-  public async getOffersByService(serviceName: string): Promise<Offer[]> {
-    const allOffers = await this.getAvailableOffers();
+  public getOffersByService(serviceName: string): Offer[] {
     const query = serviceName.toLowerCase();
 
-    return allOffers.filter((offer) =>
-      offer.service.toLowerCase().includes(query),
-    );
+    return this.getAvailableOffers()
+      .filter(
+        (offer) =>
+          offer.service.toLowerCase().includes(query) ||
+          offer.title.toLowerCase().includes(query),
+      )
+      .sort((a, b) => Number(Boolean(b.promoCode)) - Number(Boolean(a.promoCode)));
   }
 
-  public async getOfferById(offerId: number): Promise<Offer | null> {
-    const allOffers = await this.getAvailableOffers();
-    return allOffers.find((offer) => offer.id === offerId) || null;
+  public getOfferById(offerId: number): Offer | null {
+    return this.getAvailableOffers().find((offer) => offer.id === offerId) || null;
   }
 }

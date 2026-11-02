@@ -1,104 +1,23 @@
 export interface CookieJar {
-  "landing-id"?: string;
-  "__flocktory-web_session2"?: string;
-  "flocktory-uuid"?: string;
-  [key: string]: string | undefined;
-}
-
-export interface SiteInfoData {
-  id?: string | number;
-  title?: string;
-  domain?: string;
-  images?: Record<string, string>;
-  [key: string]: unknown;
-}
-
-export interface SiteInfo {
-  id?: number;
-  title?: string;
-  data?: SiteInfoData;
-}
-
-export interface FlockInitialState {
-  siteInfo?: SiteInfo;
-  app?: {
-    urlToken?: string;
-    jwtToken?: string;
-    urlQueryParams?: {
-      lid?: string;
-    };
-  };
-}
-
-export interface CampaignSite {
-  id?: string | number;
-  title?: string;
-  domain?: string;
-  category?: string;
-}
-
-export interface CampaignTexts {
-  sale?: string;
-  short?: string;
-  conditions?: string;
-  motivationAmount?: string;
-  motivationType?: string;
-}
-
-export interface CampaignImages {
-  logotypeExchange?: string;
-  logoCircle?: string;
-  backgroundImage?: string;
   [key: string]: string | undefined;
 }
 
 export interface CampaignData {
-  id: number | string;
-  site?: CampaignSite;
-  texts?: CampaignTexts;
-  images?: CampaignImages;
-  agreement?: string;
-  advertiserSiteUrl?: string;
+  id: number;
+  title?: string;
+  logo?: string;
+  siteId?: number;
+  conditions?: string;
+  redirectUrl?: string;
+  fields?: string[];
+  motivationBlock?: {
+    title?: string;
+    description?: string;
+  };
 }
 
-export interface OffersListResponse {
-  testVariation?: string;
+export interface LandingConfig {
   campaigns?: CampaignData[];
-}
-
-export interface Consent {
-  type: string;
-  value: string;
-}
-
-export interface CustomerAction {
-  key: string;
-  value: string;
-}
-
-export interface AcceptOfferPayload {
-  jwtToken: string;
-  email: string;
-  offerId: string;
-  offerSiteId: string;
-  siteId: string;
-  consents: Consent[];
-  customerActions: CustomerAction[];
-  [key: string]: unknown;
-}
-
-export interface AcceptOfferResponse {
-  url?: string;
-}
-
-export interface CouponData {
-  coupon?: string;
-  promocode?: string;
-  "expires-at"?: string;
-  description?: string | null;
-  "reward-value"?: string;
-  "motivation-id"?: string;
-  [key: string]: unknown;
 }
 
 export interface Offer {
@@ -106,10 +25,10 @@ export interface Offer {
   service: string;
   title: string;
   description: string;
-  value?: string;
   imageUrl?: string;
-  offerSiteId: string;
   serviceUrl?: string;
+  promoCode?: string;
+  fields: string[];
 }
 
 export interface PromoCode {
@@ -117,8 +36,6 @@ export interface PromoCode {
   service: string;
   serviceUrl: string;
   description?: string;
-  rewardValue?: string;
-  expiresAt?: string;
 }
 
 export interface RequestOptions {

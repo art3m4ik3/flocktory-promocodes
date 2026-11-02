@@ -5,17 +5,15 @@ import { OffersService } from "./services/OffersService";
 import { PromoService } from "./services/PromoService";
 
 export class FlocktoryClient {
-  private readonly httpClient: HttpClient;
   private readonly sessionManager: SessionManager;
   private readonly offersService: OffersService;
   private readonly promoService: PromoService;
   private isInitialized: boolean;
 
   constructor() {
-    this.httpClient = new HttpClient();
-    this.sessionManager = new SessionManager(this.httpClient);
+    this.sessionManager = new SessionManager(new HttpClient());
     this.offersService = new OffersService(this.sessionManager);
-    this.promoService = new PromoService(this.httpClient, this.sessionManager);
+    this.promoService = new PromoService();
     this.isInitialized = false;
   }
 
@@ -33,6 +31,11 @@ export class FlocktoryClient {
   public async getAvailableOffers(): Promise<Offer[]> {
     this.ensureInitialized();
     return this.offersService.getAvailableOffers();
+  }
+
+  public async getOffersWithPromoCodes(): Promise<Offer[]> {
+    const offers = await this.getAvailableOffers();
+    return offers.filter((offer) => offer.promoCode);
   }
 
   public async getOffersByService(serviceName: string): Promise<Offer[]> {
@@ -59,15 +62,14 @@ export class FlocktoryClient {
     serviceName: string,
     count: number = 1,
   ): Promise<PromoCode[]> {
-    this.ensureInitialized();
-
     const offers = await this.getOffersByService(serviceName);
 
     if (offers.length === 0) {
       throw new Error(`No offers found for service: ${serviceName}`);
     }
 
-    const selectedOffers = offers.slice(0, count);
-    return this.getMultiplePromoCodes(selectedOffers);
+    return this.promoService
+      .getMultiplePromoCodes(offers)
+      .slice(0, count);
   }
 }

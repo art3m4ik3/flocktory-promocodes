@@ -9,8 +9,8 @@ async function getAllPromos() {
     console.log("Сессия инициализирована\n");
 
     console.log("Получение доступных предложений");
-    const offers = await client.getAvailableOffers();
-    console.log(`Найдено ${offers.length} предложений\n`);
+    const offers = await client.getOffersWithPromoCodes();
+    console.log(`Найдено ${offers.length} предложений с промокодами\n`);
 
     const maxPromos = Math.min(5, offers.length);
     console.log(`Получение ${maxPromos} промокодов\n`);

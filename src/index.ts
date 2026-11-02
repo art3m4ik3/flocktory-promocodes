@@ -1,2 +1,2 @@
 export { FlocktoryClient } from "./FlocktoryClient";
-export type { Offer, PromoCode, CampaignData, SiteInfo } from "./types";
+export type { Offer, PromoCode, CampaignData, LandingConfig } from "./types";

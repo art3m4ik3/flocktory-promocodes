@@ -48,7 +48,7 @@ await client.initialize();
 const offers = await client.getAvailableOffers();
 
 // Получить предложения по сервису
-const offers = await client.getOffersByService("vtb.ru");
+const offers = await client.getOffersByService("yandex");
 
 // Получить предложение по ID
 const offer = await client.getOfferById(925351);
@@ -60,18 +60,17 @@ const promo = await client.getPromoCode(offer);
 const promos = await client.getMultiplePromoCodes([offer1, offer2]);
 
 // Получить промокоды по названию сервиса
-const promos = await client.getPromoCodesByService("vtb.ru", 3);
+const promos = await client.getPromoCodesByService("yandex", 3);
 ```
 
 ## Как работает
 
-1. **Инициализация**: `/exchange/login` -> редирект на `/interchange/{uuid}`. Из `window.flockInitialState` берутся `uuid`, `app.jwtToken` и `siteInfo.data.id` (siteId)
-2. **Получение офферов**: `GET /interchange/{uuid}/api/offers/list?jwtToken={jwt}&siteId={siteId}&email={email}` -> массив `campaigns`
-3. **Активация**: `POST /interchange/{uuid}/api/offers/accept` с `jwtToken`, `email`, `offerId`, `offerSiteId` (из `campaign.site.id`), `siteId`, согласиями и UTM-метками -> URL с промокодом
-4. **Декодирование**: Извлечение JWT из параметра `data` -> `coupon.coupon`
+1. **Загрузка лендинга**: `GET https://share.flocktory.com/exchange/login` -> из инлайн-скрипта `const CONFIG = {"campaigns": [...]}` берётся массив кампаний
+2. **Офферы**: у каждой кампании есть `id`, `title`, `conditions`, `fields` (поля формы) и, для промо-офферов, `redirectUrl`. Сервис определяется по домену `redirectUrl`
+3. **Промокод**: извлекается из query-параметров `redirectUrl` (`promocode`, `promo_code`, `code` и т.п.)
 
 > [!NOTE]
-> Email генерируется случайным образом при создании клиента, чтобы избежать спама. Часть офферов — лид-форма без промокода: для них сервер возвращает текст вроде «Не требуется», а не код.
+> Промокоды на новом лендинге статичные: одинаковые для всех посетителей и при каждой загрузке. Кампании с полями `phone`/`name` — лид-формы без промокода, `getPromoCode` для них бросает ошибку. Используйте `getOffersWithPromoCodes()`, чтобы получить только офферы с кодами.
 
 ## Важное замечание
 

@@ -16,10 +16,10 @@ async function listAvailableOffers(): Promise<void> {
       console.log(`ID предложения: ${offer.id}`);
       console.log(`Сервис: ${offer.service}`);
       console.log(`Название: ${offer.title}`);
-      console.log(`Описание: ${offer.description}`);
+      console.log(`Поля формы: ${offer.fields.join(", ")}`);
 
-      if (offer.value) {
-        console.log(`Значение: ${offer.value}`);
+      if (offer.promoCode) {
+        console.log(`Промокод: ${offer.promoCode}`);
       }
 
       console.log("---");
